@@ -26,7 +26,7 @@ Detecting objects such as cars and pedestrians in 3D plays an indispensable role
 - [Training and Inference](#training-and-inference)
 
 
-
+#
 ## Requirements
 1. Python 3.7
 2. Pytorch 1.0.0
@@ -69,10 +69,12 @@ KITTI
         | image_3
 ```
 Generate soft-links of SceneFlow Datasets. The results will be saved in `./sceneflow` folder. Please change to fakepath `path-to-SceneFlow` to the SceneFlow dataset location before running the script.
+#为啥sceneflow就要创建软链接？为啥
 ```bash
 python scneflow.py --path path-to-SceneFlow --force
 ```
 Convert the KITTI velodyne ground truths to depth maps. Please change to fakepath `path-to-KITTI` to the SceneFlow dataset location before running the script.
+#把kitti的真实点云转为深度图，在运行前修改下面命令中的kitti路径。为啥kitti不用soft—links？
 ```bash
 python ./src/preprocess/generate_depth_map.py --data_path path-to-KITTI/ --split_file ./split/trainval.txt
 ```
@@ -86,21 +88,24 @@ python ./src/preprocess/generate_depth_map.py --data_path path-to-KITTI/ --split
 - [7 Train 3D Detection with Pseudo-LiDAR](#7-train-3d-detection-with-pseudo-lidar)
 
 We have provided all pretrained models [Pretrained Models](#pretrained-models). If you only want to generate the predictions, you can directly go to step [3](#3-generate-predictions). 
-
+#没错我准备这么干
 The default setting requires four gpus to train. You can use smaller batch sizes which are `btrain` and `bval`, if you don't have enough gpus. 
 #### 1 Train SDNet from Scratch on SceneFlow Dataset
 ```bash
 python ./src/main.py -c src/configs/sdn_sceneflow.config
 ```
+#第一步略
 The checkpoints are saved in `./results/sdn_sceneflow/`.
+#这是sceneflow训练后的chekpoints文件，也就是ckpt吧
 #### 2 Train SDNet on KITTI Dataset
 ```bash
 python ./src/main.py -c src/configs/sdn_kitti_train.config \
     --pretrain ./results/sdn_sceneflow/checkpoint.pth.tar --dataset  path-to-KITTI/training/
 ```
 Before running, please change the fakepath `path-to-KITTI/` to the correct one. `--pretrain` is the path to the  pretrained model on SceneFlow. The training results are saved in `./results/sdn_kitti_train_set`.
-
+#为啥训练kitti还得用sceneflow的预训练模型？
 If you are working on evaluating SDNet on KITTI testing set, you might want to train SDNet on *training+validation* sets. The training results will be saved in `./results/sdn_kitti_trainval_set`.
+#如果你是用kitti testing set 来评估SDNet，你可能需要*training+validation* sets上训练SDNet。
 ```bash
 python ./src/main.py -c src/configs/sdn_kitti_train.config \
     --pretrain ./results/sdn_sceneflow/checkpoint.pth.tar \
@@ -108,8 +113,33 @@ python ./src/main.py -c src/configs/sdn_kitti_train.config \
     --save_path ./results/sdn_kitti_trainval_set
 ``` 
 #### 3 Generate Predictions
+```bash
+python ./src/main.py -c src/configs/sdn_kitti_train.config \
+    --pretrain ./results/sdn_sceneflow/checkpoint.pth.tar \
+    --dataset  path-to-KITTI/training/ --split_train ./split/trainval.txt \
+    --save_path ./results/sdn_kitti_trainval_set
+``` 
+#这一步生成预测结果，也就是传说中可以用预训练模型训练不用自己训练直接跳过1，2步来测试的第三步
+#### 3 Generate Predictions为啥这里又有一个Generate Predictions
 Please change the fakepath `path-to-KITTI`. Moreover, if you use the our provided checkpoint, please modify the value of `--resume` to the checkpoint location. 
-
+#修改脚本中的路径，重点!!!!如果你使用的是我们提供好的预训练模型，请匹配--resume中的chekpoint的路径
+* a. Using the model trained on KITTI training set, and generating predictions on training + validation sets.
+#使用基于kitti的训练集的训练模型，生成训练和验证集的预测结果。
+```bash
+python ./src/main.py -c src/configs/sdn_kitti_train.config \
+    --resume ./results/sdn_kitti_train_set/checkpoint.pth.tar --datapath  path-to-KITTI/training/ \
+    --data_list ./split/trainval.txt --generate_depth_map --data_tag trainval
+``` 
+The results will be saved in `./results/sdn_kitti_train_set/depth_maps_trainval/`.
+#结果将被保存在保存路径
+* b. Using the model trained on KITTI training + validation set, and generating predictions on training + validation and testing sets. You will use them when you want to submit your results to the leaderboard.
+#使用基于kitti训练和验证集的训练模型，生成训练，验证，和测试集的预测结果，这个是用来提交结果到kitti的官网排名用的。
+```bash
+# training + validation sets
+python ./src/main.py -c src/configs/sdn_kitti_train.config \
+    --resume ./results/sdn_kitti_trainval_set/checkpoint.pth.tar --datapath  path-to-KITTI/training/ \
+Please change the fakepath `path-to-KITTI`. Moreover, if you use the our provided checkpoint, please modify the value of `--resume` to the checkpoint location. 
+#如果使用作者提供的预训练模型，修改--resume的chekpoint文件的路径
 * a. Using the model trained on KITTI training set, and generating predictions on training + validation sets.
 ```bash
 python ./src/main.py -c src/configs/sdn_kitti_train.config \
@@ -117,7 +147,7 @@ python ./src/main.py -c src/configs/sdn_kitti_train.config \
     --data_list ./split/trainval.txt --generate_depth_map --data_tag trainval
 ``` 
 The results will be saved in `./results/sdn_kitti_train_set/depth_maps_trainval/`.
-
+#嗯？重复了
 * b. Using the model trained on KITTI training + validation set, and generating predictions on training + validation and testing sets. You will use them when you want to submit your results to the leaderboard.
 ```bash
 # training + validation sets
@@ -127,36 +157,39 @@ python ./src/main.py -c src/configs/sdn_kitti_train.config \
 ``` 
 The results will be saved in `./results/sdn_kitti_trainval_set/depth_maps_trainval/`.
 ```bash
-# testing sets
+# testing sets测试集
 python ./src/main.py -c src/configs/sdn_kitti_train.config \
     --resume ./results/sdn_kitti_trainval_set/checkpoint.pth.tar --datapath  path-to-KITTI/testing/ \
     --data_list=./split/test.txt --generate_depth_map --data_tag test
 ``` 
 The results will be saved in `./results/sdn_kitti_trainval_set/depth_maps_test/`.
-#### 4 Convert predictions to Pseudo-LiDAR and Planes
+#### 4 Convert predictions to Pseudo-LiDAR and Planes将预测结果转为伪雷达和地面
 Here, I provide an example. You have to change the paths accordingly. In this example, it will load calibrations from `calib_dir`, and load depth maps from `depth_dir`. The results will be saved in `save_dir`.
+#在这里我提供了一个例子，你对路径进行相应的修改，在这个例子中，它将会从calib_dir中提取校准坐标，以及从depth_dir中提取深度图，结果将保存在save_dir。
 ```bash
-# Convert depth maps to Pseudo-Lidar Point Clouds
+# Convert depth maps to Pseudo-Lidar Point Clouds#形成伪雷达点云
 python ./src/preprocess/generate_lidar_from_depth.py --calib_dir  path-to-KITTI/training/calib \
     --depth_dir ./results/sdn_kitti_train_set/depth_maps/trainval/  \
     --save_dir  ./results/sdn_kitti_train_set/pseudo_lidar_trainval/
 ``` 
 ```bash
-# Predict Ground Planes
+# Predict Ground Planes生成地平面
 python ./src/preprocess/kitti_process_RANSAC.py --calib_dir  path-to-KITTI/training/calib \
     --lidar_dir ./results/ssdn_kitti_train_set/pseudo_lidar_trainval/  \
     --planes_dir  ./results/sdn_kitti_train_set/pseudo_lidar_trainval_planes/
 ``` 
-#### 5 Sparsify Pseudo-LiDAR
+#### 5 Sparsify Pseudo-LiDAR稀疏化伪雷达
 Some 3D Object Detection models, such as PointRCNN, requires sparse point clouds. We provide an script to downsample the dense Pseudo-LiDAR clouds.
+#一些3D检测模型，比如PointRCNN，要求稀疏化点云，我们提供了脚本用于对密集的伪雷达点云进行稀疏化。
 ```bash
 # Sparsify Pseudo-LiDAR
 python ./src/preprocess/kitti_sparsify.py --pl_path  ./results/ssdn_kitti_train_set/pseudo_lidar_trainval/  \
     --sparse_pl_path  ./results/sdn_kitti_train_set/pseudo_lidar_trainval_sparse/
 ``` 
-#### 6 Graph-based Depth Correction 
+
+#### 6 Graph-based Depth Correction 什么基于图的深度矫正
 Please check the code and [README.md](gdc/README.md) in [./gdc](gdc) for more details.
-#### 7 Train 3D Detection with Pseudo-LiDAR
+#### 7 Train 3D Detection with Pseudo-LiDAR基于伪雷达的3D检测
 Please check the Pseudo-LiDAR repo for more details https://github.com/mileyan/pseudo_lidar.
 
 ## Results
